@@ -5,129 +5,52 @@ const path = require('node:path');
 const { db, UPLOAD_DIR } = require('./db');
 const { embedUrlFor } = require('./lib/video');
 
-/* ------------------------------- photos -------------------------------- */
+/* ----------------------------- collections ----------------------------- */
 
 const q = {
-  allPhotos: db.prepare('SELECT * FROM photos ORDER BY position, id'),
-  photo: db.prepare('SELECT * FROM photos WHERE id = ?'),
-  insertPhoto: db.prepare(
-    'INSERT INTO photos (filename, original_name, caption, alt_text, position) ' +
-      'VALUES (@filename, @original_name, @caption, @alt_text, @position)'
+  allCollections: db.prepare('SELECT * FROM collections ORDER BY position, id'),
+  publishedCollections: db.prepare(
+    'SELECT * FROM collections WHERE published = 1 ORDER BY position, id'
   ),
-  updatePhoto: db.prepare(
-    'UPDATE photos SET caption = @caption, alt_text = @alt_text WHERE id = @id'
+  collection: db.prepare('SELECT * FROM collections WHERE id = ?'),
+  collectionBySlug: db.prepare('SELECT * FROM collections WHERE slug = ?'),
+  insertCollection: db.prepare(
+    'INSERT INTO collections (slug, title, subtitle, description, kind, columns, published, position) ' +
+      'VALUES (@slug, @title, @subtitle, @description, @kind, @columns, @published, @position)'
   ),
-  deletePhoto: db.prepare('DELETE FROM photos WHERE id = ?'),
-  maxPhotoPos: db.prepare('SELECT COALESCE(MAX(position), 0) AS p FROM photos'),
+  updateCollection: db.prepare(
+    'UPDATE collections SET slug = @slug, title = @title, subtitle = @subtitle, ' +
+      'description = @description, kind = @kind, columns = @columns, published = @published, ' +
+      "updated_at = datetime('now') WHERE id = @id"
+  ),
+  deleteCollection: db.prepare('DELETE FROM collections WHERE id = ?'),
+  maxCollectionPos: db.prepare('SELECT COALESCE(MAX(position), 0) AS p FROM collections'),
 
-  allVideos: db.prepare('SELECT * FROM videos ORDER BY position, id'),
-  video: db.prepare('SELECT * FROM videos WHERE id = ?'),
-  insertVideo: db.prepare(
-    'INSERT INTO videos (title, url, provider, video_id, description, position) ' +
-      'VALUES (@title, @url, @provider, @video_id, @description, @position)'
+  worksIn: db.prepare('SELECT * FROM works WHERE collection_id = ? ORDER BY position, id'),
+  work: db.prepare('SELECT * FROM works WHERE id = ?'),
+  insertWork: db.prepare(
+    'INSERT INTO works (collection_id, kind, filename, original_name, url, provider, ' +
+      'video_id, title, year, medium, alt_text, position) ' +
+      'VALUES (@collection_id, @kind, @filename, @original_name, @url, @provider, ' +
+      '@video_id, @title, @year, @medium, @alt_text, @position)'
   ),
-  updateVideo: db.prepare(
-    'UPDATE videos SET title = @title, url = @url, provider = @provider, ' +
-      'video_id = @video_id, description = @description WHERE id = @id'
+  updateWork: db.prepare(
+    'UPDATE works SET title = @title, year = @year, medium = @medium, ' +
+      'alt_text = @alt_text, url = @url, provider = @provider, video_id = @video_id WHERE id = @id'
   ),
-  deleteVideo: db.prepare('DELETE FROM videos WHERE id = ?'),
-  maxVideoPos: db.prepare('SELECT COALESCE(MAX(position), 0) AS p FROM videos'),
-
-  allPages: db.prepare('SELECT * FROM pages ORDER BY position, id'),
-  publishedPages: db.prepare('SELECT * FROM pages WHERE published = 1 ORDER BY position, id'),
-  page: db.prepare('SELECT * FROM pages WHERE id = ?'),
-  pageBySlug: db.prepare('SELECT * FROM pages WHERE slug = ?'),
-  insertPage: db.prepare(
-    'INSERT INTO pages (slug, title, body, published, position) ' +
-      'VALUES (@slug, @title, @body, @published, @position)'
+  deleteWork: db.prepare('DELETE FROM works WHERE id = ?'),
+  maxWorkPos: db.prepare(
+    'SELECT COALESCE(MAX(position), 0) AS p FROM works WHERE collection_id = ?'
   ),
-  updatePage: db.prepare(
-    'UPDATE pages SET slug = @slug, title = @title, body = @body, ' +
-      "published = @published, updated_at = datetime('now') WHERE id = @id"
+  countWorks: db.prepare('SELECT COUNT(*) AS n FROM works WHERE collection_id = ?'),
+  filenamesIn: db.prepare(
+    "SELECT filename FROM works WHERE collection_id = ? AND filename <> ''"
   ),
-  deletePage: db.prepare('DELETE FROM pages WHERE id = ?'),
-  maxPagePos: db.prepare('SELECT COALESCE(MAX(position), 0) AS p FROM pages'),
-
-  allLinks: db.prepare('SELECT * FROM links ORDER BY position, id'),
-  insertLink: db.prepare(
-    'INSERT INTO links (label, url, position) VALUES (@label, @url, @position)'
-  ),
-  deleteLink: db.prepare('DELETE FROM links WHERE id = ?'),
-  maxLinkPos: db.prepare('SELECT COALESCE(MAX(position), 0) AS p FROM links'),
-
-  setPos: {
-    photos: db.prepare('UPDATE photos SET position = ? WHERE id = ?'),
-    videos: db.prepare('UPDATE videos SET position = ? WHERE id = ?'),
-    pages: db.prepare('UPDATE pages SET position = ? WHERE id = ?'),
-    links: db.prepare('UPDATE links SET position = ? WHERE id = ?'),
-  },
 };
 
-const listPhotos = () => q.allPhotos.all();
-const getPhoto = (id) => q.photo.get(id);
+const KINDS = new Set(['images', 'videos']);
 
-function addPhoto({ filename, originalName }) {
-  return q.insertPhoto.run({
-    filename,
-    original_name: originalName ?? '',
-    caption: '',
-    alt_text: '',
-    position: q.maxPhotoPos.get().p + 1,
-  });
-}
-
-function updatePhoto(id, { caption, altText }) {
-  return q.updatePhoto.run({ id, caption: caption ?? '', alt_text: altText ?? '' });
-}
-
-/** Removes the row and the file on disk together. */
-function deletePhoto(id) {
-  const photo = q.photo.get(id);
-  if (!photo) return false;
-  q.deletePhoto.run(id);
-  const file = path.join(UPLOAD_DIR, path.basename(photo.filename));
-  fs.rm(file, { force: true }, () => {});
-  return true;
-}
-
-/* ------------------------------- videos -------------------------------- */
-
-function listVideos() {
-  return q.allVideos.all().map((v) => ({ ...v, embedUrl: embedUrlFor(v) }));
-}
-const getVideo = (id) => q.video.get(id);
-
-function addVideo({ title, url, provider, videoId, description }) {
-  return q.insertVideo.run({
-    title: title ?? '',
-    url,
-    provider: provider ?? 'link',
-    video_id: videoId ?? '',
-    description: description ?? '',
-    position: q.maxVideoPos.get().p + 1,
-  });
-}
-
-function updateVideo(id, { title, url, provider, videoId, description }) {
-  return q.updateVideo.run({
-    id,
-    title: title ?? '',
-    url,
-    provider: provider ?? 'link',
-    video_id: videoId ?? '',
-    description: description ?? '',
-  });
-}
-const deleteVideo = (id) => q.deleteVideo.run(id).changes > 0;
-
-/* -------------------------------- pages -------------------------------- */
-
-const listPages = () => q.allPages.all();
-const listPublishedPages = () => q.publishedPages.all();
-const getPage = (id) => q.page.get(id);
-const getPageBySlug = (slug) => q.pageBySlug.get(slug);
-
-function slugify(input, fallback = 'page') {
+function slugify(input, fallback = 'collection') {
   const slug = String(input ?? '')
     .toLowerCase()
     .normalize('NFKD')
@@ -146,77 +69,186 @@ function uniqueSlug(desired, excludeId = null) {
   let candidate = base;
   let n = 2;
   for (;;) {
-    const existing = q.pageBySlug.get(candidate);
+    const existing = q.collectionBySlug.get(candidate);
     if (!existing || existing.id === excludeId) return candidate;
     candidate = `${base}-${n++}`;
   }
 }
 
-function addPage({ title, body, published }) {
-  return q.insertPage.run({
+const listCollections = () => q.allCollections.all();
+const getCollection = (id) => q.collection.get(id);
+const getCollectionBySlug = (slug) => q.collectionBySlug.get(slug);
+const countWorksIn = (id) => q.countWorks.get(id).n;
+
+/** Published collections only, for the public nav. */
+function listPublishedCollections() {
+  return q.publishedCollections.all();
+}
+
+function addCollection({ title, kind }) {
+  return q.insertCollection.run({
     slug: uniqueSlug(title),
     title: title ?? '',
-    body: body ?? '',
-    published: published ? 1 : 0,
-    position: q.maxPagePos.get().p + 1,
+    subtitle: '',
+    description: '',
+    kind: KINDS.has(kind) ? kind : 'images',
+    columns: 3,
+    published: 0,
+    position: q.maxCollectionPos.get().p + 1,
   });
 }
 
-function updatePage(id, { title, body, published, slug }) {
-  return q.updatePage.run({
+function updateCollection(id, { title, slug, subtitle, description, kind, columns, published }) {
+  const cols = Number(columns);
+  return q.updateCollection.run({
     id,
     slug: uniqueSlug(slug || title, id),
     title: title ?? '',
-    body: body ?? '',
+    subtitle: subtitle ?? '',
+    description: description ?? '',
+    kind: KINDS.has(kind) ? kind : 'images',
+    columns: [2, 3, 4].includes(cols) ? cols : 3,
     published: published ? 1 : 0,
   });
 }
-const deletePage = (id) => q.deletePage.run(id).changes > 0;
 
-/* -------------------------------- links -------------------------------- */
+/** Removes the collection, its works (via cascade) and their image files. */
+function deleteCollection(id) {
+  const collection = q.collection.get(id);
+  if (!collection) return false;
+  const files = q.filenamesIn.all(id);
+  q.deleteCollection.run(id);
+  for (const { filename } of files) removeUpload(filename);
+  return true;
+}
 
-const listLinks = () => q.allLinks.all();
-function addLink({ label, url }) {
-  return q.insertLink.run({
-    label: label ?? '',
-    url,
-    position: q.maxLinkPos.get().p + 1,
+/* -------------------------------- works -------------------------------- */
+
+function listWorks(collectionId) {
+  return q.worksIn.all(collectionId).map((w) => ({ ...w, embedUrl: embedUrlFor(w) }));
+}
+
+const getWork = (id) => q.work.get(id);
+
+function addImageWork(collectionId, { filename, originalName }) {
+  return q.insertWork.run({
+    collection_id: collectionId,
+    kind: 'image',
+    filename,
+    original_name: originalName ?? '',
+    url: '',
+    provider: '',
+    video_id: '',
+    title: '',
+    year: '',
+    medium: '',
+    alt_text: '',
+    position: q.maxWorkPos.get(collectionId).p + 1,
   });
 }
-const deleteLink = (id) => q.deleteLink.run(id).changes > 0;
+
+function addVideoWork(collectionId, { url, provider, videoId, title, year, medium }) {
+  return q.insertWork.run({
+    collection_id: collectionId,
+    kind: 'video',
+    filename: '',
+    original_name: '',
+    url,
+    provider: provider ?? 'link',
+    video_id: videoId ?? '',
+    title: title ?? '',
+    year: year ?? '',
+    medium: medium ?? '',
+    alt_text: '',
+    position: q.maxWorkPos.get(collectionId).p + 1,
+  });
+}
+
+function updateWork(id, { title, year, medium, altText, url, provider, videoId }) {
+  const existing = q.work.get(id);
+  if (!existing) return false;
+  q.updateWork.run({
+    id,
+    title: title ?? '',
+    year: year ?? '',
+    medium: medium ?? '',
+    alt_text: altText ?? existing.alt_text,
+    url: url ?? existing.url,
+    provider: provider ?? existing.provider,
+    video_id: videoId ?? existing.video_id,
+  });
+  return true;
+}
+
+function deleteWork(id) {
+  const work = q.work.get(id);
+  if (!work) return false;
+  q.deleteWork.run(id);
+  if (work.filename) removeUpload(work.filename);
+  return true;
+}
+
+function removeUpload(filename) {
+  if (!filename) return;
+  fs.rm(path.join(UPLOAD_DIR, path.basename(filename)), { force: true }, () => {});
+}
 
 /* ------------------------------ reordering ----------------------------- */
 
 /**
- * Swaps an item with its neighbour. Positions are renumbered from the current
- * display order first, so rows created before this feature still order cleanly.
+ * Swaps a row with its neighbour. Positions are renumbered from the current
+ * display order first, so rows that predate a position value still sort cleanly.
  */
-const move = db.transaction((table, id, direction) => {
-  const stmt = q.setPos[table];
-  if (!stmt) throw new Error(`unknown table: ${table}`);
-  const rows = db.prepare(`SELECT id FROM ${table} ORDER BY position, id`).all();
+const move = db.transaction((table, id, direction, scope = null) => {
+  const where = table === 'works' ? 'WHERE collection_id = ?' : '';
+  const params = table === 'works' ? [scope] : [];
+  const rows = db.prepare(`SELECT id FROM ${table} ${where} ORDER BY position, id`).all(...params);
   const index = rows.findIndex((r) => r.id === Number(id));
   if (index === -1) return false;
   const target = direction === 'up' ? index - 1 : index + 1;
   if (target < 0 || target >= rows.length) return false;
   [rows[index], rows[target]] = [rows[target], rows[index]];
+  const stmt = db.prepare(`UPDATE ${table} SET position = ? WHERE id = ?`);
   rows.forEach((row, i) => stmt.run(i + 1, row.id));
   return true;
 });
 
+/* ------------------------- messages & subscribers ---------------------- */
+
+const messages = {
+  list: db.prepare('SELECT * FROM messages ORDER BY created_at DESC, id DESC'),
+  get: db.prepare('SELECT * FROM messages WHERE id = ?'),
+  add: db.prepare(
+    'INSERT INTO messages (name, email, subject, body) VALUES (@name, @email, @subject, @body)'
+  ),
+  markRead: db.prepare("UPDATE messages SET read_at = datetime('now') WHERE id = ?"),
+  remove: db.prepare('DELETE FROM messages WHERE id = ?'),
+  unread: db.prepare('SELECT COUNT(*) AS n FROM messages WHERE read_at IS NULL'),
+};
+
+const subscribers = {
+  list: db.prepare('SELECT * FROM subscribers ORDER BY created_at DESC, id DESC'),
+  add: db.prepare(
+    'INSERT INTO subscribers (email) VALUES (?) ON CONFLICT(email) DO NOTHING'
+  ),
+  remove: db.prepare('DELETE FROM subscribers WHERE id = ?'),
+  count: db.prepare('SELECT COUNT(*) AS n FROM subscribers'),
+};
+
 function counts() {
   return {
-    photos: db.prepare('SELECT COUNT(*) AS n FROM photos').get().n,
-    videos: db.prepare('SELECT COUNT(*) AS n FROM videos').get().n,
-    pages: db.prepare('SELECT COUNT(*) AS n FROM pages').get().n,
-    links: db.prepare('SELECT COUNT(*) AS n FROM links').get().n,
+    collections: db.prepare('SELECT COUNT(*) AS n FROM collections').get().n,
+    works: db.prepare('SELECT COUNT(*) AS n FROM works').get().n,
+    messages: db.prepare('SELECT COUNT(*) AS n FROM messages').get().n,
+    unread: messages.unread.get().n,
+    subscribers: subscribers.count.get().n,
   };
 }
 
 module.exports = {
-  listPhotos, getPhoto, addPhoto, updatePhoto, deletePhoto,
-  listVideos, getVideo, addVideo, updateVideo, deleteVideo,
-  listPages, listPublishedPages, getPage, getPageBySlug, addPage, updatePage, deletePage,
-  listLinks, addLink, deleteLink,
-  move, counts, slugify, uniqueSlug,
+  listCollections, listPublishedCollections, getCollection, getCollectionBySlug,
+  addCollection, updateCollection, deleteCollection, countWorksIn,
+  listWorks, getWork, addImageWork, addVideoWork, updateWork, deleteWork,
+  move, counts, slugify, uniqueSlug, removeUpload,
+  messages, subscribers,
 };

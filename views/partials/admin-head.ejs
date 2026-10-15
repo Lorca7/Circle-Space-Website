@@ -22,13 +22,12 @@
 </header>
 <div class="admin-wrap admin-body">
   <nav class="admin-nav" aria-label="Admin sections">
-    <a href="/admin" <%= active === 'dashboard' ? 'class="current"' : '' %>>Dashboard</a>
-    <a href="/admin/settings" <%= active === 'settings' ? 'class="current"' : '' %>>Site text</a>
-    <a href="/admin/photos" <%= active === 'photos' ? 'class="current"' : '' %>>Photos <span class="count"><%= counts.photos %></span></a>
-    <a href="/admin/videos" <%= active === 'videos' ? 'class="current"' : '' %>>Video links <span class="count"><%= counts.videos %></span></a>
-    <a href="/admin/pages" <%= active === 'pages' ? 'class="current"' : '' %>>Pages <span class="count"><%= counts.pages %></span></a>
-    <a href="/admin/links" <%= active === 'links' ? 'class="current"' : '' %>>Links <span class="count"><%= counts.links %></span></a>
-    <a href="/admin/account" <%= active === 'account' ? 'class="current"' : '' %>>Your account</a>
+    <a href="/admin" class="<%= active === 'dashboard' ? 'current' : '' %>">Dashboard</a>
+    <a href="/admin/settings" class="<%= active === 'settings' ? 'current' : '' %>">Site text</a>
+    <a href="/admin/collections" class="<%= active === 'collections' ? 'current' : '' %>">Collections <span class="count"><%= counts.collections %></span></a>
+    <a href="/admin/messages" class="<%= active === 'messages' ? 'current' : '' %>">Messages <span class="count <%= counts.unread ? 'count-alert' : '' %>"><%= counts.unread ? counts.unread + ' new' : counts.messages %></span></a>
+    <a href="/admin/subscribers" class="<%= active === 'subscribers' ? 'current' : '' %>">Studio updates <span class="count"><%= counts.subscribers %></span></a>
+    <a href="/admin/account" class="<%= active === 'account' ? 'current' : '' %>">Your account</a>
   </nav>
   <section class="admin-main">
     <h1 class="admin-title"><%= title %></h1>

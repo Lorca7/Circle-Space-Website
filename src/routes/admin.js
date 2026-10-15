@@ -1,13 +1,11 @@
 'use strict';
 
-const fs = require('node:fs');
-const path = require('node:path');
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { db, getSettings, saveSettings, SETTING_KEYS } = require('../db');
 const content = require('../content');
 const { parseVideoUrl } = require('../lib/video');
-const { upload, describeUploadError, UPLOAD_DIR } = require('../lib/upload');
+const { upload, describeUploadError } = require('../lib/upload');
 const {
   createUser, verifyLogin, hasAnyUser, requireAuth,
   csrf, tokenMatches, rejectCsrf, normaliseEmail,
@@ -27,22 +25,21 @@ router.use((req, res, next) => {
   next();
 });
 
-function notice(req, message) {
-  req.session.notice = message;
-}
-function fail(req, message) {
-  req.session.errorMessage = message;
+const notice = (req, message) => { req.session.notice = message; };
+const fail = (req, message) => { req.session.errorMessage = message; };
+
+/** Throws away files multer already wrote, for a request being rejected. */
+function discardUploads(files) {
+  for (const file of files ?? []) content.removeUpload(file.filename);
 }
 
 /* ------------------------- first-run / sign-in ------------------------- */
 
-// With no account yet, every admin URL leads to setup; once one exists the
-// setup page is closed off so it can never be used to add a second owner.
+// With no account yet every admin URL leads to setup; once one exists the
+// setup page is closed off so it can never add a second owner.
 router.use((req, res, next) => {
   const isSetup = req.path === '/setup';
-  if (!hasAnyUser()) {
-    return isSetup ? next() : res.redirect('/admin/setup');
-  }
+  if (!hasAnyUser()) return isSetup ? next() : res.redirect('/admin/setup');
   if (isSetup) return res.redirect('/admin/login');
   return next();
 });
@@ -115,11 +112,12 @@ router.get('/', (req, res) => {
   res.render('admin/dashboard', {
     title: 'Dashboard',
     settings: getSettings(),
+    collections: content.listCollections(),
     active: 'dashboard',
   });
 });
 
-/* ------------------------------ settings ------------------------------- */
+/* ------------------------------ site text ------------------------------ */
 
 router.get('/settings', (req, res) => {
   res.render('admin/settings', {
@@ -131,234 +129,274 @@ router.get('/settings', (req, res) => {
 
 router.post('/settings', (req, res) => {
   const values = {};
-  for (const key of SETTING_KEYS) values[key] = String(req.body[key] ?? '');
+  // home_image is managed by its own upload route, not this form.
+  for (const key of SETTING_KEYS) {
+    if (key !== 'home_image' && Object.prototype.hasOwnProperty.call(req.body, key)) {
+      values[key] = String(req.body[key] ?? '');
+    }
+  }
   saveSettings(values);
   notice(req, 'Site text saved.');
   res.redirect('/admin/settings');
 });
 
-/* ------------------------------- photos -------------------------------- */
-
-router.get('/photos', (req, res) => {
-  res.render('admin/photos', {
-    title: 'Photos',
-    photos: content.listPhotos(),
-    active: 'photos',
+router.post('/settings/home-image', (req, res) => {
+  upload.single('home_image')(req, res, (err) => {
+    if (req.csrfDeferred && !tokenMatches(req)) {
+      discardUploads(req.file ? [req.file] : []);
+      return rejectCsrf(res);
+    }
+    if (err) {
+      discardUploads(req.file ? [req.file] : []);
+      fail(req, describeUploadError(err) || 'That upload could not be accepted.');
+      return res.redirect('/admin/settings');
+    }
+    if (!req.file) {
+      fail(req, 'Choose an image to upload.');
+      return res.redirect('/admin/settings');
+    }
+    const previous = getSettings().home_image;
+    saveSettings({ home_image: req.file.filename });
+    if (previous) content.removeUpload(previous);
+    notice(req, 'Home page image updated.');
+    return res.redirect('/admin/settings');
   });
 });
 
-/** Deletes files multer already wrote, for a request we end up rejecting. */
-function discardUploads(files) {
-  for (const file of files ?? []) {
-    fs.rm(path.join(UPLOAD_DIR, path.basename(file.filename)), { force: true }, () => {});
-  }
-}
+router.post('/settings/home-image/delete', (req, res) => {
+  const previous = getSettings().home_image;
+  saveSettings({ home_image: '' });
+  if (previous) content.removeUpload(previous);
+  notice(req, 'Home page image removed.');
+  res.redirect('/admin/settings');
+});
 
-router.post('/photos', (req, res) => {
-  upload.array('photos', 20)(req, res, (err) => {
-    // The multipart body only exists now, so this is where its CSRF token can
-    // be checked. Anything already written to disk is thrown away.
+/* ----------------------------- collections ----------------------------- */
+
+router.get('/collections', (req, res) => {
+  const collections = content.listCollections().map((c) => ({
+    ...c,
+    workCount: content.countWorksIn(c.id),
+  }));
+  res.render('admin/collections', { title: 'Collections', collections, active: 'collections' });
+});
+
+router.post('/collections', (req, res) => {
+  const title = String(req.body.title ?? '').trim();
+  if (!title) {
+    fail(req, 'Give the collection a title.');
+    return res.redirect('/admin/collections');
+  }
+  const info = content.addCollection({ title, kind: req.body.kind });
+  notice(req, 'Collection created. Add the works, then publish it when you are ready.');
+  res.redirect(`/admin/collections/${info.lastInsertRowid}`);
+});
+
+router.get('/collections/:id', (req, res) => {
+  const collection = content.getCollection(Number(req.params.id));
+  if (!collection) {
+    fail(req, 'That collection no longer exists.');
+    return res.redirect('/admin/collections');
+  }
+  res.render('admin/collection-edit', {
+    title: collection.title || 'Untitled collection',
+    collection,
+    works: content.listWorks(collection.id),
+    active: 'collections',
+  });
+});
+
+router.post('/collections/:id', (req, res) => {
+  const id = Number(req.params.id);
+  if (!content.getCollection(id)) {
+    fail(req, 'That collection no longer exists.');
+    return res.redirect('/admin/collections');
+  }
+  const title = String(req.body.title ?? '').trim();
+  if (!title) {
+    fail(req, 'Give the collection a title.');
+    return res.redirect(`/admin/collections/${id}`);
+  }
+  content.updateCollection(id, {
+    title,
+    slug: req.body.slug,
+    subtitle: req.body.subtitle,
+    description: req.body.description,
+    kind: req.body.kind,
+    columns: req.body.columns,
+    published: req.body.published === 'on',
+  });
+  notice(req, 'Collection saved.');
+  res.redirect(`/admin/collections/${id}`);
+});
+
+router.post('/collections/:id/delete', (req, res) => {
+  content.deleteCollection(Number(req.params.id))
+    ? notice(req, 'Collection deleted, along with everything in it.')
+    : fail(req, 'That collection no longer exists.');
+  res.redirect('/admin/collections');
+});
+
+router.post('/collections/:id/move', (req, res) => {
+  content.move('collections', Number(req.params.id), req.body.direction === 'up' ? 'up' : 'down');
+  res.redirect('/admin/collections');
+});
+
+/* -------------------------------- works -------------------------------- */
+
+router.post('/collections/:id/images', (req, res) => {
+  const id = Number(req.params.id);
+  const back = `/admin/collections/${id}`;
+
+  upload.array('images', 20)(req, res, (err) => {
+    // The multipart body only exists now, so this is where its token is checked.
     if (req.csrfDeferred && !tokenMatches(req)) {
       discardUploads(req.files);
       return rejectCsrf(res);
     }
+    if (!content.getCollection(id)) {
+      discardUploads(req.files);
+      fail(req, 'That collection no longer exists.');
+      return res.redirect('/admin/collections');
+    }
     if (err) {
       discardUploads(req.files);
       fail(req, describeUploadError(err) || 'That upload could not be accepted.');
-      return res.redirect('/admin/photos');
+      return res.redirect(back);
     }
     const files = req.files ?? [];
     if (files.length === 0) {
       fail(req, 'Choose at least one image to upload.');
-      return res.redirect('/admin/photos');
+      return res.redirect(back);
     }
     for (const file of files) {
-      content.addPhoto({ filename: file.filename, originalName: file.originalname });
+      content.addImageWork(id, { filename: file.filename, originalName: file.originalname });
     }
-    notice(req, `Added ${files.length} ${files.length === 1 ? 'photo' : 'photos'}.`);
-    return res.redirect('/admin/photos');
+    notice(req, `Added ${files.length} ${files.length === 1 ? 'work' : 'works'}.`);
+    return res.redirect(back);
   });
 });
 
-router.post('/photos/:id', (req, res) => {
+router.post('/collections/:id/videos', (req, res) => {
   const id = Number(req.params.id);
-  if (!content.getPhoto(id)) {
-    fail(req, 'That photo no longer exists.');
-    return res.redirect('/admin/photos');
+  const back = `/admin/collections/${id}`;
+  if (!content.getCollection(id)) {
+    fail(req, 'That collection no longer exists.');
+    return res.redirect('/admin/collections');
   }
-  content.updatePhoto(id, { caption: req.body.caption, altText: req.body.alt_text });
-  notice(req, 'Photo details saved.');
-  res.redirect('/admin/photos');
-});
-
-router.post('/photos/:id/delete', (req, res) => {
-  content.deletePhoto(Number(req.params.id))
-    ? notice(req, 'Photo deleted.')
-    : fail(req, 'That photo no longer exists.');
-  res.redirect('/admin/photos');
-});
-
-router.post('/photos/:id/move', (req, res) => {
-  content.move('photos', Number(req.params.id), req.body.direction === 'up' ? 'up' : 'down');
-  res.redirect('/admin/photos');
-});
-
-/* ------------------------------- videos -------------------------------- */
-
-router.get('/videos', (req, res) => {
-  res.render('admin/videos', {
-    title: 'Video links',
-    videos: content.listVideos(),
-    active: 'videos',
-  });
-});
-
-router.post('/videos', (req, res) => {
   const parsed = parseVideoUrl(req.body.url);
   if (!parsed.ok) {
     fail(req, parsed.error);
-    return res.redirect('/admin/videos');
+    return res.redirect(back);
   }
-  content.addVideo({
-    title: req.body.title,
+  content.addVideoWork(id, {
     url: parsed.url,
     provider: parsed.provider,
     videoId: parsed.videoId,
-    description: req.body.description,
+    title: req.body.title,
+    year: req.body.year,
+    medium: req.body.medium,
   });
   notice(req, 'Video added.');
-  res.redirect('/admin/videos');
+  res.redirect(back);
 });
 
-router.post('/videos/:id', (req, res) => {
-  const id = Number(req.params.id);
-  if (!content.getVideo(id)) {
-    fail(req, 'That video no longer exists.');
-    return res.redirect('/admin/videos');
+router.post('/works/:id', (req, res) => {
+  const work = content.getWork(Number(req.params.id));
+  if (!work) {
+    fail(req, 'That work no longer exists.');
+    return res.redirect('/admin/collections');
   }
-  const parsed = parseVideoUrl(req.body.url);
-  if (!parsed.ok) {
-    fail(req, parsed.error);
-    return res.redirect('/admin/videos');
-  }
-  content.updateVideo(id, {
+  const fields = {
     title: req.body.title,
-    url: parsed.url,
-    provider: parsed.provider,
-    videoId: parsed.videoId,
-    description: req.body.description,
+    year: req.body.year,
+    medium: req.body.medium,
+    altText: req.body.alt_text,
+  };
+  if (work.kind === 'video') {
+    const parsed = parseVideoUrl(req.body.url);
+    if (!parsed.ok) {
+      fail(req, parsed.error);
+      return res.redirect(`/admin/collections/${work.collection_id}`);
+    }
+    Object.assign(fields, {
+      url: parsed.url,
+      provider: parsed.provider,
+      videoId: parsed.videoId,
+    });
+  }
+  content.updateWork(work.id, fields);
+  notice(req, 'Saved.');
+  res.redirect(`/admin/collections/${work.collection_id}`);
+});
+
+router.post('/works/:id/delete', (req, res) => {
+  const work = content.getWork(Number(req.params.id));
+  if (!work) {
+    fail(req, 'That work no longer exists.');
+    return res.redirect('/admin/collections');
+  }
+  const collectionId = work.collection_id;
+  content.deleteWork(work.id);
+  notice(req, 'Removed.');
+  res.redirect(`/admin/collections/${collectionId}`);
+});
+
+router.post('/works/:id/move', (req, res) => {
+  const work = content.getWork(Number(req.params.id));
+  if (!work) {
+    fail(req, 'That work no longer exists.');
+    return res.redirect('/admin/collections');
+  }
+  content.move('works', work.id, req.body.direction === 'up' ? 'up' : 'down', work.collection_id);
+  res.redirect(`/admin/collections/${work.collection_id}`);
+});
+
+/* ------------------------------ messages ------------------------------- */
+
+router.get('/messages', (req, res) => {
+  res.render('admin/messages', {
+    title: 'Messages',
+    messages: content.messages.list.all(),
+    active: 'messages',
   });
-  notice(req, 'Video saved.');
-  res.redirect('/admin/videos');
 });
 
-router.post('/videos/:id/delete', (req, res) => {
-  content.deleteVideo(Number(req.params.id))
-    ? notice(req, 'Video removed.')
-    : fail(req, 'That video no longer exists.');
-  res.redirect('/admin/videos');
+router.post('/messages/:id/read', (req, res) => {
+  content.messages.markRead.run(Number(req.params.id));
+  res.redirect('/admin/messages');
 });
 
-router.post('/videos/:id/move', (req, res) => {
-  content.move('videos', Number(req.params.id), req.body.direction === 'up' ? 'up' : 'down');
-  res.redirect('/admin/videos');
+router.post('/messages/:id/delete', (req, res) => {
+  content.messages.remove.run(Number(req.params.id));
+  notice(req, 'Message deleted.');
+  res.redirect('/admin/messages');
 });
 
-/* -------------------------------- pages -------------------------------- */
+/* ----------------------------- subscribers ----------------------------- */
 
-router.get('/pages', (req, res) => {
-  res.render('admin/pages', { title: 'Pages', pages: content.listPages(), active: 'pages' });
-});
-
-router.post('/pages', (req, res) => {
-  const title = String(req.body.title ?? '').trim();
-  if (!title) {
-    fail(req, 'Give the page a title.');
-    return res.redirect('/admin/pages');
-  }
-  const info = content.addPage({ title, body: '', published: false });
-  notice(req, 'Page created. Add the text, then publish it when you are ready.');
-  res.redirect(`/admin/pages/${info.lastInsertRowid}`);
-});
-
-router.get('/pages/:id', (req, res) => {
-  const page = content.getPage(Number(req.params.id));
-  if (!page) {
-    fail(req, 'That page no longer exists.');
-    return res.redirect('/admin/pages');
-  }
-  res.render('admin/page-edit', { title: 'Edit page', page, active: 'pages' });
-});
-
-router.post('/pages/:id', (req, res) => {
-  const id = Number(req.params.id);
-  if (!content.getPage(id)) {
-    fail(req, 'That page no longer exists.');
-    return res.redirect('/admin/pages');
-  }
-  const title = String(req.body.title ?? '').trim();
-  if (!title) {
-    fail(req, 'Give the page a title.');
-    return res.redirect(`/admin/pages/${id}`);
-  }
-  content.updatePage(id, {
-    title,
-    slug: req.body.slug,
-    body: req.body.body,
-    published: req.body.published === 'on',
+router.get('/subscribers', (req, res) => {
+  res.render('admin/subscribers', {
+    title: 'Studio updates',
+    subscribers: content.subscribers.list.all(),
+    active: 'subscribers',
   });
-  notice(req, 'Page saved.');
-  res.redirect(`/admin/pages/${id}`);
 });
 
-router.post('/pages/:id/delete', (req, res) => {
-  content.deletePage(Number(req.params.id))
-    ? notice(req, 'Page deleted.')
-    : fail(req, 'That page no longer exists.');
-  res.redirect('/admin/pages');
+router.get('/subscribers.csv', (req, res) => {
+  const rows = content.subscribers.list.all();
+  const csv = ['email,subscribed_at']
+    .concat(rows.map((r) => `${r.email},${r.created_at}`))
+    .join('\n');
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="subscribers.csv"');
+  res.send(`${csv}\n`);
 });
 
-router.post('/pages/:id/move', (req, res) => {
-  content.move('pages', Number(req.params.id), req.body.direction === 'up' ? 'up' : 'down');
-  res.redirect('/admin/pages');
-});
-
-/* -------------------------------- links -------------------------------- */
-
-router.get('/links', (req, res) => {
-  res.render('admin/links', { title: 'Links', links: content.listLinks(), active: 'links' });
-});
-
-router.post('/links', (req, res) => {
-  const label = String(req.body.label ?? '').trim();
-  const raw = String(req.body.url ?? '').trim();
-  if (!label) {
-    fail(req, 'Give the link a label.');
-    return res.redirect('/admin/links');
-  }
-  let url;
-  try {
-    url = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error('scheme');
-  } catch {
-    fail(req, 'That does not look like a valid link.');
-    return res.redirect('/admin/links');
-  }
-  content.addLink({ label, url: url.href });
-  notice(req, 'Link added.');
-  res.redirect('/admin/links');
-});
-
-router.post('/links/:id/delete', (req, res) => {
-  content.deleteLink(Number(req.params.id))
-    ? notice(req, 'Link removed.')
-    : fail(req, 'That link no longer exists.');
-  res.redirect('/admin/links');
-});
-
-router.post('/links/:id/move', (req, res) => {
-  content.move('links', Number(req.params.id), req.body.direction === 'up' ? 'up' : 'down');
-  res.redirect('/admin/links');
+router.post('/subscribers/:id/delete', (req, res) => {
+  content.subscribers.remove.run(Number(req.params.id));
+  notice(req, 'Subscriber removed.');
+  res.redirect('/admin/subscribers');
 });
 
 /* ------------------------------- account ------------------------------- */

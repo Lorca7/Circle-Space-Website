@@ -1,0 +1,40 @@
+<%- include('../partials/admin-head') %>
+<p class="lead">
+  Everything sent through the contact form is kept here.
+</p>
+
+<% if (!messages.length) { %>
+  <p class="empty-row">No messages yet.</p>
+<% } else { %>
+  <ul class="admin-list">
+    <% messages.forEach(function (m) { %>
+      <li class="admin-row admin-row-stack <%= m.read_at ? '' : 'unread' %>">
+        <div class="row-main">
+          <p class="row-title">
+            <%= m.subject || '(no subject)' %>
+            <% if (!m.read_at) { %><span class="badge-new">New</span><% } %>
+          </p>
+          <p class="row-meta">
+            <%= m.name %> &lt;<a href="mailto:<%= m.email %>"><%= m.email %></a>&gt; · <%= m.created_at %> UTC
+          </p>
+          <div class="message-body"><%- include('../partials/prose', { text: m.body }) %></div>
+        </div>
+        <div class="row-actions">
+          <a class="icon-button" href="mailto:<%= m.email %>?subject=<%= encodeURIComponent('Re: ' + (m.subject || 'your message')) %>">Reply</a>
+          <% if (!m.read_at) { %>
+            <form method="post" action="/admin/messages/<%= m.id %>/read" class="inline-form">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button type="submit" class="icon-button">Mark read</button>
+            </form>
+          <% } %>
+          <form method="post" action="/admin/messages/<%= m.id %>/delete" class="inline-form"
+                onsubmit="return confirm('Delete this message?');">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button type="submit" class="icon-button danger">Delete</button>
+          </form>
+        </div>
+      </li>
+    <% }); %>
+  </ul>
+<% } %>
+<%- include('../partials/admin-foot') %>

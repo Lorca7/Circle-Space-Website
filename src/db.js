@@ -36,94 +36,108 @@ db.exec(`
     value TEXT NOT NULL DEFAULT ''
   );
 
-  CREATE TABLE IF NOT EXISTS photos (
+  /* A body of work: a titled series holding either images or videos. */
+  CREATE TABLE IF NOT EXISTS collections (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    slug        TEXT NOT NULL UNIQUE,
+    title       TEXT NOT NULL DEFAULT '',
+    subtitle    TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL DEFAULT '',
+    kind        TEXT NOT NULL DEFAULT 'images',
+    columns     INTEGER NOT NULL DEFAULT 3,
+    published   INTEGER NOT NULL DEFAULT 0,
+    position    INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  /* One piece inside a collection: an uploaded image or an embedded video. */
+  CREATE TABLE IF NOT EXISTS works (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    filename      TEXT NOT NULL,
+    collection_id INTEGER NOT NULL REFERENCES collections (id) ON DELETE CASCADE,
+    kind          TEXT NOT NULL DEFAULT 'image',
+    filename      TEXT NOT NULL DEFAULT '',
     original_name TEXT NOT NULL DEFAULT '',
-    caption       TEXT NOT NULL DEFAULT '',
+    url           TEXT NOT NULL DEFAULT '',
+    provider      TEXT NOT NULL DEFAULT '',
+    video_id      TEXT NOT NULL DEFAULT '',
+    title         TEXT NOT NULL DEFAULT '',
+    year          TEXT NOT NULL DEFAULT '',
+    medium        TEXT NOT NULL DEFAULT '',
     alt_text      TEXT NOT NULL DEFAULT '',
     position      INTEGER NOT NULL DEFAULT 0,
     created_at    TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
-  CREATE TABLE IF NOT EXISTS videos (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    title       TEXT NOT NULL DEFAULT '',
-    url         TEXT NOT NULL,
-    provider    TEXT NOT NULL DEFAULT 'link',
-    video_id    TEXT NOT NULL DEFAULT '',
-    description TEXT NOT NULL DEFAULT '',
-    position    INTEGER NOT NULL DEFAULT 0,
-    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS pages (
+  /* Contact form submissions, kept here so none are lost if email is not set up. */
+  CREATE TABLE IF NOT EXISTS messages (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    slug       TEXT NOT NULL UNIQUE,
-    title      TEXT NOT NULL DEFAULT '',
+    name       TEXT NOT NULL DEFAULT '',
+    email      TEXT NOT NULL DEFAULT '',
+    subject    TEXT NOT NULL DEFAULT '',
     body       TEXT NOT NULL DEFAULT '',
-    published  INTEGER NOT NULL DEFAULT 0,
-    position   INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    read_at    TEXT
   );
 
-  CREATE TABLE IF NOT EXISTS links (
-    id       INTEGER PRIMARY KEY AUTOINCREMENT,
-    label    TEXT NOT NULL DEFAULT '',
-    url      TEXT NOT NULL,
-    position INTEGER NOT NULL DEFAULT 0
+  CREATE TABLE IF NOT EXISTS subscribers (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    email      TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
-  CREATE INDEX IF NOT EXISTS idx_photos_position ON photos (position, id);
-  CREATE INDEX IF NOT EXISTS idx_videos_position ON videos (position, id);
-  CREATE INDEX IF NOT EXISTS idx_pages_position  ON pages (position, id);
-  CREATE INDEX IF NOT EXISTS idx_links_position  ON links (position, id);
-  CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions (expires);
+  CREATE INDEX IF NOT EXISTS idx_collections_position ON collections (position, id);
+  CREATE INDEX IF NOT EXISTS idx_works_collection     ON works (collection_id, position, id);
+  CREATE INDEX IF NOT EXISTS idx_messages_created     ON messages (created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_sessions_expires     ON sessions (expires);
 `);
 
-// Every setting ships blank on purpose: the site has no content until the
-// owner types it into the admin panel.
+// Every setting ships blank: the site has no content until the owner enters it.
 const SETTING_KEYS = [
   'site_title',
-  'tagline',
-  'hero_heading',
-  'hero_subheading',
+  'home_image',
+  'home_image_alt',
+  'home_caption',
   'about_heading',
   'about_body',
   'contact_heading',
-  'contact_body',
+  'contact_intro',
   'contact_email',
+  'newsletter_heading',
+  'newsletter_intro',
   'footer_text',
 ];
 
 const insertSetting = db.prepare(
-  'INSERT INTO settings (key, value) VALUES (?, \'\') ON CONFLICT(key) DO NOTHING'
+  "INSERT INTO settings (key, value) VALUES (?, '') ON CONFLICT(key) DO NOTHING"
 );
 
 db.transaction(() => {
   for (const key of SETTING_KEYS) insertSetting.run(key);
 })();
 
-const statements = {
-  getSettings: db.prepare('SELECT key, value FROM settings'),
-  setSetting: db.prepare(
-    'INSERT INTO settings (key, value) VALUES (@key, @value) ' +
-      'ON CONFLICT(key) DO UPDATE SET value = excluded.value'
-  ),
-};
+const readSettings = db.prepare('SELECT key, value FROM settings');
+const writeSetting = db.prepare(
+  'INSERT INTO settings (key, value) VALUES (@key, @value) ' +
+    'ON CONFLICT(key) DO UPDATE SET value = excluded.value'
+);
+
+const KNOWN_KEYS = new Set(SETTING_KEYS);
 
 function getSettings() {
   const out = Object.create(null);
   for (const key of SETTING_KEYS) out[key] = '';
-  for (const row of statements.getSettings.all()) out[row.key] = row.value;
+  for (const row of readSettings.all()) {
+    if (KNOWN_KEYS.has(row.key)) out[row.key] = row.value;
+  }
   return out;
 }
 
+/** Writes only the keys present in `values`, so partial forms are safe. */
 const saveSettings = db.transaction((values) => {
   for (const key of SETTING_KEYS) {
     if (Object.prototype.hasOwnProperty.call(values, key)) {
-      statements.setSetting.run({ key, value: String(values[key] ?? '') });
+      writeSetting.run({ key, value: String(values[key] ?? '') });
     }
   }
 });

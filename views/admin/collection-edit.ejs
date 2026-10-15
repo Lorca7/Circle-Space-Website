@@ -1,0 +1,150 @@
+<%- include('../partials/admin-head') %>
+
+<p class="lead">
+  <a href="/admin/collections">&larr; All collections</a>
+  <% if (collection.published) { %>
+    · <a href="/c/<%= collection.slug %>" target="_blank" rel="noopener">View on the site &nearr;</a>
+  <% } %>
+</p>
+
+<form method="post" action="/admin/collections/<%= collection.id %>" class="stack form-wide">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <fieldset>
+    <legend>About this collection</legend>
+    <label>Title
+      <input type="text" name="title" value="<%= collection.title %>" maxlength="200" required>
+    </label>
+    <label>Line underneath the title
+      <textarea name="subtitle" rows="2" maxlength="500"><%= collection.subtitle %></textarea>
+      <span class="hint">A quote or short description, centred under the title.</span>
+    </label>
+    <label>Introduction
+      <textarea name="description" rows="5"><%= collection.description %></textarea>
+      <span class="hint">A longer paragraph above the works. Leave a blank line between paragraphs.</span>
+    </label>
+    <label>Web address
+      <span class="slug-row">
+        <span class="slug-prefix">/c/</span>
+        <input type="text" name="slug" value="<%= collection.slug %>" maxlength="80">
+      </span>
+    </label>
+    <label>What goes in it
+      <select name="kind">
+        <option value="images" <%= collection.kind === 'images' ? 'selected' : '' %>>Images</option>
+        <option value="videos" <%= collection.kind === 'videos' ? 'selected' : '' %>>Videos</option>
+      </select>
+    </label>
+    <label>Columns
+      <select name="columns">
+        <% [2, 3, 4].forEach(function (n) { %>
+          <option value="<%= n %>" <%= collection.columns === n ? 'selected' : '' %>><%= n %> across</option>
+        <% }); %>
+      </select>
+      <span class="hint">On narrow screens the grid collapses on its own.</span>
+    </label>
+    <label class="checkbox">
+      <input type="checkbox" name="published" <%= collection.published ? 'checked' : '' %>>
+      Published — show this collection in the site menu
+    </label>
+    <button type="submit" class="button">Save collection</button>
+  </fieldset>
+</form>
+
+<h2 class="admin-subtitle">
+  <%= collection.kind === 'videos' ? 'Videos' : 'Works' %> in this collection
+</h2>
+
+<% if (collection.kind === 'videos') { %>
+  <form method="post" action="/admin/collections/<%= collection.id %>/videos" class="stack panel">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <label>Video link
+      <input type="text" name="url" placeholder="https://www.youtube.com/watch?v=..." required>
+      <span class="hint">YouTube and Vimeo links are embedded. Anything else becomes a plain link.</span>
+    </label>
+    <label>Title
+      <input type="text" name="title" maxlength="200">
+    </label>
+    <div class="field-pair">
+      <label>Year
+        <input type="text" name="year" maxlength="40">
+      </label>
+      <label>Medium or subtitle
+        <input type="text" name="medium" maxlength="200">
+      </label>
+    </div>
+    <button type="submit" class="button">Add video</button>
+  </form>
+<% } else { %>
+  <form method="post" action="/admin/collections/<%= collection.id %>/images"
+        enctype="multipart/form-data" class="stack panel">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <label>Upload images
+      <input type="file" name="images" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" multiple required>
+      <span class="hint">JPG, PNG, WebP, GIF or AVIF. Up to 20 at a time. Add the titles below once uploaded.</span>
+    </label>
+    <button type="submit" class="button">Upload</button>
+  </form>
+<% } %>
+
+<% if (!works.length) { %>
+  <p class="empty-row">Nothing in this collection yet.</p>
+<% } else { %>
+  <ul class="admin-list">
+    <% works.forEach(function (work, i) { %>
+      <li class="admin-row">
+        <div class="row-thumb">
+          <% if (work.kind === 'image' && work.filename) { %>
+            <img class="thumb" src="/uploads/<%= work.filename %>" alt="" loading="lazy">
+          <% } else { %>
+            <span class="thumb thumb-video"><%= work.provider || 'link' %></span>
+          <% } %>
+        </div>
+        <form method="post" action="/admin/works/<%= work.id %>" class="stack row-form">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <% if (work.kind === 'video') { %>
+            <label>Link
+              <input type="text" name="url" value="<%= work.url %>" required>
+            </label>
+          <% } %>
+          <label>Title
+            <input type="text" name="title" value="<%= work.title %>" maxlength="200">
+          </label>
+          <div class="field-pair">
+            <label>Year
+              <input type="text" name="year" value="<%= work.year %>" maxlength="40">
+            </label>
+            <label>Medium
+              <input type="text" name="medium" value="<%= work.medium %>" maxlength="200">
+              <span class="hint">Such as &ldquo;Charcoal / Photography / Digital painting&rdquo;.</span>
+            </label>
+          </div>
+          <% if (work.kind === 'image') { %>
+            <label>Image description
+              <input type="text" name="alt_text" value="<%= work.alt_text %>" maxlength="300">
+              <span class="hint">Describes the image for screen readers.</span>
+            </label>
+          <% } %>
+          <button type="submit" class="button button-small">Save</button>
+        </form>
+        <div class="row-actions">
+          <form method="post" action="/admin/works/<%= work.id %>/move" class="inline-form">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <input type="hidden" name="direction" value="up">
+            <button type="submit" class="icon-button" title="Move up" <%= i === 0 ? 'disabled' : '' %>>&uarr;</button>
+          </form>
+          <form method="post" action="/admin/works/<%= work.id %>/move" class="inline-form">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <input type="hidden" name="direction" value="down">
+            <button type="submit" class="icon-button" title="Move down" <%= i === works.length - 1 ? 'disabled' : '' %>>&darr;</button>
+          </form>
+          <form method="post" action="/admin/works/<%= work.id %>/delete" class="inline-form"
+                onsubmit="return confirm('Remove this? This cannot be undone.');">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button type="submit" class="icon-button danger" title="Remove">Remove</button>
+          </form>
+        </div>
+      </li>
+    <% }); %>
+  </ul>
+<% } %>
+<%- include('../partials/admin-foot') %>

@@ -1,80 +1,21 @@
 <%- include('../partials/head') %>
 
-<section class="hero">
-  <h1 class="hero-heading">
-    <%= settings.hero_heading || siteTitle %>
-  </h1>
-  <% if (settings.hero_subheading) { %>
-    <p class="hero-sub"><%= settings.hero_subheading %></p>
-  <% } %>
-  <% if (siteTitleIsPlaceholder && !settings.hero_heading) { %>
-    <p class="hero-sub muted">
-      This site has no content yet. Add your title, text, photos and videos
-      from the admin panel.
+<% if (settings.home_image) { %>
+  <figure class="home-figure">
+    <img src="/uploads/<%= settings.home_image %>"
+         alt="<%= settings.home_image_alt %>" fetchpriority="high">
+    <% if (settings.home_caption) { %>
+      <figcaption class="home-caption"><%= settings.home_caption %></figcaption>
+    <% } %>
+  </figure>
+<% } else { %>
+  <div class="empty-state">
+    <p class="empty-title">No home page image yet</p>
+    <p class="empty-body">
+      Choose the piece that opens the site under <strong>Site text</strong> in the admin panel.
     </p>
-    <p><a class="button" href="/admin">Open the admin panel</a></p>
-  <% } %>
-</section>
-
-<section class="section">
-  <div class="section-head">
-    <h2>Gallery</h2>
-    <% if (photos.length) { %><a class="more" href="/gallery">See all photos</a><% } %>
+    <p class="empty-action"><a class="button" href="/admin">Open the admin panel</a></p>
   </div>
-  <% if (photos.length) { %>
-    <ul class="photo-grid">
-      <% photos.forEach(function (photo) { %>
-        <li class="photo-item">
-          <img src="/uploads/<%= photo.filename %>" alt="<%= photo.alt_text || photo.caption %>" loading="lazy">
-          <% if (photo.caption) { %><p class="photo-caption"><%= photo.caption %></p><% } %>
-        </li>
-      <% }); %>
-    </ul>
-  <% } else { %>
-    <%- include('../partials/empty', {
-      title: 'No photos yet',
-      body: 'Photos you upload appear here, in the order you set.',
-      showAction: false
-    }) %>
-  <% } %>
-</section>
-
-<section class="section">
-  <div class="section-head">
-    <h2>Videos</h2>
-    <% if (videos.length) { %><a class="more" href="/videos">See all videos</a><% } %>
-  </div>
-  <% if (videos.length) { %>
-    <ul class="video-list">
-      <% videos.forEach(function (video) { %>
-        <li class="video-item">
-          <%- include('../partials/video', { video: video }) %>
-        </li>
-      <% }); %>
-    </ul>
-  <% } else { %>
-    <%- include('../partials/empty', {
-      title: 'No videos yet',
-      body: 'Paste a YouTube or Vimeo link in the admin panel and it plays here.',
-      showAction: false
-    }) %>
-  <% } %>
-</section>
-
-<% if (settings.about_body) { %>
-<section class="section">
-  <div class="section-head">
-    <h2><%= settings.about_heading || 'About' %></h2>
-    <a class="more" href="/about">Read more</a>
-  </div>
-  <div class="prose">
-    <%- include('../partials/prose', {
-      text: settings.about_body.length > 400
-        ? settings.about_body.slice(0, 400).replace(/\s+\S*$/, '') + '\u2026'
-        : settings.about_body
-    }) %>
-  </div>
-</section>
 <% } %>
 
 <%- include('../partials/foot') %>

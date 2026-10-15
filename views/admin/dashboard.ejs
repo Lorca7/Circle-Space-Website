@@ -2,49 +2,60 @@
 
 <p class="lead">
   Everything on the public site is managed from here. Nothing is filled in yet —
-  work through the sections below in any order.
+  work through the sections in any order.
 </p>
 
 <ul class="tiles">
   <li class="tile">
     <h2><a href="/admin/settings">Site text</a></h2>
-    <p>Your site name, tagline, home page headline, about text and contact details.</p>
+    <p>Your name in the sidebar, the image that opens the site, and the about and contact text.</p>
     <p class="tile-state <%= settings.site_title ? 'done' : '' %>">
       <%= settings.site_title ? 'Site name set' : 'No site name yet' %>
     </p>
   </li>
   <li class="tile">
-    <h2><a href="/admin/photos">Photos</a></h2>
-    <p>Upload images for the gallery, add captions, and set the order they appear in.</p>
-    <p class="tile-state <%= counts.photos ? 'done' : '' %>">
-      <%= counts.photos ? counts.photos + ' uploaded' : 'No photos yet' %>
+    <h2><a href="/admin/collections">Collections</a></h2>
+    <p>Each body of work is a collection with its own page: a title, a line beneath it, and the works themselves.</p>
+    <p class="tile-state <%= counts.collections ? 'done' : '' %>">
+      <%= counts.collections ? counts.collections + ' created, ' + counts.works + ' works' : 'No collections yet' %>
     </p>
   </li>
   <li class="tile">
-    <h2><a href="/admin/videos">Video links</a></h2>
-    <p>Paste YouTube or Vimeo links; they are embedded on the site automatically.</p>
-    <p class="tile-state <%= counts.videos ? 'done' : '' %>">
-      <%= counts.videos ? counts.videos + ' added' : 'No videos yet' %>
+    <h2><a href="/admin/messages">Messages</a></h2>
+    <p>Everything sent through the contact form arrives here.</p>
+    <p class="tile-state <%= counts.unread ? 'done' : '' %>">
+      <%= counts.unread ? counts.unread + ' unread' : (counts.messages ? 'All read' : 'No messages yet') %>
     </p>
   </li>
   <li class="tile">
-    <h2><a href="/admin/pages">Pages</a></h2>
-    <p>Create extra pages of your own. They join the menu once published.</p>
-    <p class="tile-state <%= counts.pages ? 'done' : '' %>">
-      <%= counts.pages ? counts.pages + ' created' : 'No extra pages yet' %>
+    <h2><a href="/admin/subscribers">Studio updates</a></h2>
+    <p>People who signed up for news. Download the list whenever you want to write to them.</p>
+    <p class="tile-state <%= counts.subscribers ? 'done' : '' %>">
+      <%= counts.subscribers ? counts.subscribers + ' subscribed' : 'Nobody yet' %>
     </p>
-  </li>
-  <li class="tile">
-    <h2><a href="/admin/links">Links</a></h2>
-    <p>Outbound links shown in the footer and on the contact page.</p>
-    <p class="tile-state <%= counts.links ? 'done' : '' %>">
-      <%= counts.links ? counts.links + ' added' : 'No links yet' %>
-    </p>
-  </li>
-  <li class="tile">
-    <h2><a href="/admin/account">Your account</a></h2>
-    <p>Signed in as <%= currentUser.email %>. Change your password here.</p>
   </li>
 </ul>
+
+<% if (collections.length) { %>
+  <h2 class="admin-subtitle">Your collections</h2>
+  <ul class="admin-list">
+    <% collections.forEach(function (c) { %>
+      <li class="admin-row admin-row-compact">
+        <div class="row-main">
+          <a class="row-title" href="/admin/collections/<%= c.id %>"><%= c.title %></a>
+          <p class="row-meta">
+            <%= c.kind === 'videos' ? 'Videos' : 'Images' %> ·
+            <span class="<%= c.published ? 'badge-live' : 'badge-draft' %>">
+              <%= c.published ? 'Published' : 'Draft' %>
+            </span>
+          </p>
+        </div>
+        <div class="row-actions">
+          <a class="icon-button" href="/admin/collections/<%= c.id %>">Edit</a>
+        </div>
+      </li>
+    <% }); %>
+  </ul>
+<% } %>
 
 <%- include('../partials/admin-foot') %>

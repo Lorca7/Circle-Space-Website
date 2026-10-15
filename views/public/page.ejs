@@ -1,8 +1,0 @@
-<%- include('../partials/head') %>
-<h1 class="page-heading"><%= page.title %></h1>
-<% if (page.body) { %>
-  <div class="prose"><%- include('../partials/prose', { text: page.body }) %></div>
-<% } else { %>
-  <p class="muted">This page has no text yet.</p>
-<% } %>
-<%- include('../partials/foot') %>

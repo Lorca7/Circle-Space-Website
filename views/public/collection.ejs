@@ -1,0 +1,54 @@
+<%- include('../partials/head') %>
+
+<header class="collection-header">
+  <h1 class="collection-title"><%= collection.title %></h1>
+  <% if (collection.subtitle) { %>
+    <p class="collection-subtitle"><%= collection.subtitle %></p>
+  <% } %>
+</header>
+
+<% if (collection.description) { %>
+  <div class="collection-description">
+    <%- include('../partials/prose', { text: collection.description }) %>
+  </div>
+<% } %>
+
+<% if (works.length) { %>
+  <ul class="work-grid cols-<%= collection.columns %>">
+    <% works.forEach(function (work) { %>
+      <li class="work">
+        <% if (work.kind === 'video') { %>
+          <% if (work.embedUrl) { %>
+            <div class="work-video">
+              <iframe src="<%= work.embedUrl %>"
+                      title="<%= work.title || 'Video' %>"
+                      loading="lazy"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      referrerpolicy="strict-origin-when-cross-origin"
+                      allowfullscreen></iframe>
+            </div>
+          <% } else { %>
+            <p class="work-link">
+              <a href="<%= work.url %>" target="_blank" rel="noopener noreferrer">Watch &rarr;</a>
+            </p>
+          <% } %>
+        <% } else if (work.filename) { %>
+          <a class="work-image-link" href="/uploads/<%= work.filename %>" target="_blank" rel="noopener noreferrer">
+            <img src="/uploads/<%= work.filename %>" alt="<%= work.alt_text || work.title %>" loading="lazy">
+          </a>
+        <% } %>
+
+        <% if (work.title) { %><h2 class="work-title"><%= work.title %></h2><% } %>
+        <% var meta = [work.year, work.medium].filter(Boolean).join(' · '); %>
+        <% if (meta) { %><p class="work-meta"><%= meta %></p><% } %>
+      </li>
+    <% }); %>
+  </ul>
+<% } else { %>
+  <div class="empty-state">
+    <p class="empty-title">Nothing in this collection yet</p>
+    <p class="empty-body">Add the works to it from the admin panel.</p>
+  </div>
+<% } %>
+
+<%- include('../partials/foot') %>

@@ -1,24 +1,68 @@
 <%- include('../partials/head') %>
-<h1 class="page-heading"><%= settings.contact_heading || 'Contact' %></h1>
-<% if (settings.contact_body) { %>
-  <div class="prose"><%- include('../partials/prose', { text: settings.contact_body }) %></div>
-<% } %>
-<% if (settings.contact_email) { %>
-  <p class="contact-email">
-    <a href="mailto:<%= settings.contact_email %>"><%= settings.contact_email %></a>
-  </p>
-<% } %>
-<% if (links.length) { %>
-  <ul class="contact-links">
-    <% links.forEach(function (l) { %>
-      <li><a href="<%= l.url %>" rel="noopener noreferrer" target="_blank"><%= l.label %></a></li>
-    <% }); %>
-  </ul>
-<% } %>
-<% if (!settings.contact_body && !settings.contact_email && !links.length) { %>
-  <%- include('../partials/empty', {
-    title: 'No contact details yet',
-    body: 'Add an email address, some text, or your links in the admin panel.'
-  }) %>
-<% } %>
+
+<section class="contact-section" id="contact-form">
+  <h1 class="section-title"><%= settings.contact_heading || 'Get in touch' %></h1>
+
+  <% if (settings.contact_intro) { %>
+    <div class="prose"><%- include('../partials/prose', { text: settings.contact_intro }) %></div>
+  <% } %>
+
+  <% if (sent) { %>
+    <p class="form-flash form-ok" role="status">
+      Thank you &mdash; your message has been sent.
+    </p>
+  <% } %>
+  <% if (formError) { %>
+    <p class="form-flash form-error" role="alert"><%= formError %></p>
+  <% } %>
+
+  <form method="post" action="/contact" class="contact-form">
+    <label class="field">
+      <span class="field-label">Name</span>
+      <input type="text" name="name" value="<%= form.name || '' %>" maxlength="200" required>
+    </label>
+    <label class="field">
+      <span class="field-label">Email</span>
+      <input type="email" name="email" value="<%= form.email || '' %>" maxlength="200" required>
+    </label>
+    <label class="field">
+      <span class="field-label">Subject</span>
+      <input type="text" name="subject" value="<%= form.subject || '' %>" maxlength="300">
+    </label>
+    <label class="field">
+      <span class="field-label">Message</span>
+      <textarea name="message" rows="7" maxlength="5000" required><%= form.body || '' %></textarea>
+    </label>
+    <%# Hidden from people, irresistible to bots. %>
+    <div class="honeypot" aria-hidden="true">
+      <label>Website <input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+    </div>
+    <button type="submit" class="button button-block">Send message</button>
+  </form>
+</section>
+
+<section class="contact-section" id="studio-updates">
+  <h2 class="section-title"><%= settings.newsletter_heading || 'Studio updates' %></h2>
+
+  <% if (settings.newsletter_intro) { %>
+    <div class="prose"><%- include('../partials/prose', { text: settings.newsletter_intro }) %></div>
+  <% } %>
+
+  <% if (subscribed) { %>
+    <p class="form-flash form-ok" role="status">Thank you &mdash; you are on the list.</p>
+  <% } %>
+  <% if (signupError) { %>
+    <p class="form-flash form-error" role="alert"><%= signupError %></p>
+  <% } %>
+
+  <form method="post" action="/subscribe" class="signup-form">
+    <label class="sr-only" for="signup-email">Email address</label>
+    <input id="signup-email" type="email" name="email" placeholder="your@email.com" maxlength="200" required>
+    <div class="honeypot" aria-hidden="true">
+      <label>Website <input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+    </div>
+    <button type="submit" class="button">Subscribe</button>
+  </form>
+</section>
+
 <%- include('../partials/foot') %>

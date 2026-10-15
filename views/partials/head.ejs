@@ -4,27 +4,30 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><%= pageTitle ? pageTitle + ' · ' + siteTitle : siteTitle %></title>
-<% if (settings.tagline) { %><meta name="description" content="<%= settings.tagline %>"><% } %>
+<% if (settings.home_caption) { %><meta name="description" content="<%= settings.home_caption %>"><% } %>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Lora:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/site.css">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
-<header class="site-header">
-  <div class="wrap header-inner">
-    <a class="brand" href="/">
-      <%= siteTitle %>
-      <% if (settings.tagline) { %><span class="brand-tagline"><%= settings.tagline %></span><% } %>
-    </a>
-    <nav class="site-nav" aria-label="Main">
-      <a href="/" <%= active === 'home' ? 'aria-current="page"' : '' %>>Home</a>
-      <a href="/gallery" <%= active === 'gallery' ? 'aria-current="page"' : '' %>>Gallery</a>
-      <a href="/videos" <%= active === 'videos' ? 'aria-current="page"' : '' %>>Videos</a>
-      <a href="/about" <%= active === 'about' ? 'aria-current="page"' : '' %>>About</a>
-      <% navPages.forEach(function (p) { %>
-        <a href="/p/<%= p.slug %>" <%= active === 'page-' + p.slug ? 'aria-current="page"' : '' %>><%= p.title %></a>
+
+<button class="nav-toggle" type="button" aria-expanded="false" aria-controls="sidebar">
+  <span class="nav-toggle-bars" aria-hidden="true"></span>
+  <span class="nav-toggle-label">Menu</span>
+</button>
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <a class="brand" href="/"><%= siteTitle %></a>
+    <nav class="sidebar-nav" aria-label="Main">
+      <a href="/about" aria-current="<%= active === 'about' ? 'page' : 'false' %>">About</a>
+      <% navCollections.forEach(function (c) { %>
+        <a href="/c/<%= c.slug %>" aria-current="<%= active === 'collection-' + c.id ? 'page' : 'false' %>"><%= c.title %></a>
       <% }); %>
-      <a href="/contact" <%= active === 'contact' ? 'aria-current="page"' : '' %>>Contact</a>
+      <a href="/contact" aria-current="<%= active === 'contact' ? 'page' : 'false' %>">Contact</a>
     </nav>
-  </div>
-</header>
-<main id="main" class="wrap">
+  </aside>
+
+  <main id="main" class="content">

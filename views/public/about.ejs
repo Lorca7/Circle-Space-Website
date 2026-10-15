@@ -1,11 +1,13 @@
 <%- include('../partials/head') %>
-<h1 class="page-heading"><%= settings.about_heading || 'About' %></h1>
+<header class="collection-header">
+  <h1 class="collection-title"><%= settings.about_heading || 'About' %></h1>
+</header>
 <% if (settings.about_body) { %>
-  <div class="prose"><%- include('../partials/prose', { text: settings.about_body }) %></div>
+  <div class="prose prose-centred"><%- include('../partials/prose', { text: settings.about_body }) %></div>
 <% } else { %>
-  <%- include('../partials/empty', {
-    title: 'Nothing here yet',
-    body: 'Write your about text in the admin panel under Site text.'
-  }) %>
+  <div class="empty-state">
+    <p class="empty-title">Nothing here yet</p>
+    <p class="empty-body">Write your about text in the admin panel under Site text.</p>
+  </div>
 <% } %>
 <%- include('../partials/foot') %>
