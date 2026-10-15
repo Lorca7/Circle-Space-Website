@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in · Admin</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="/css/admin.css">
+</head>
+<body class="admin admin-centred">
+<main class="card">
+  <h1>Sign in</h1>
+  <% if (notice) { %><p class="flash flash-ok" role="status"><%= notice %></p><% } %>
+  <% if (errorMessage) { %><p class="flash flash-error" role="alert"><%= errorMessage %></p><% } %>
+  <form method="post" action="/admin/login" class="stack">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <label>Email
+      <input type="email" name="email" autocomplete="username" required autofocus>
+    </label>
+    <label>Password
+      <input type="password" name="password" autocomplete="current-password" required>
+    </label>
+    <button type="submit" class="button">Sign in</button>
+  </form>
+  <p class="card-foot"><a href="/">&larr; Back to the site</a></p>
+</main>
+</body>
+</html>

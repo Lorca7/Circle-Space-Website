@@ -1,0 +1,9 @@
+<%# Renders owner-entered plain text as paragraphs, escaped. %>
+<% String(text || '').split(/\n{2,}/).map(function (p) { return p.trim(); })
+     .filter(Boolean).forEach(function (para) { %>
+  <p><%- para.split(/\n/).map(function (line) {
+       return line.replace(/[&<>"']/g, function (c) {
+         return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+       });
+     }).join('<br>') %></p>
+<% }); %>

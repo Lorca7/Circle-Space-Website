@@ -1,0 +1,61 @@
+<%- include('../partials/admin-head') %>
+
+<form method="post" action="/admin/videos" class="stack panel">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <label>Video link
+    <input type="text" name="url" placeholder="https://www.youtube.com/watch?v=..." required>
+    <span class="hint">YouTube and Vimeo links are embedded. Anything else is kept as a plain link.</span>
+  </label>
+  <label>Title
+    <input type="text" name="title" maxlength="200">
+  </label>
+  <label>Description
+    <textarea name="description" rows="3"></textarea>
+  </label>
+  <button type="submit" class="button">Add video</button>
+</form>
+
+<% if (!videos.length) { %>
+  <p class="empty-row">No videos yet. Paste your first link above.</p>
+<% } else { %>
+  <ul class="admin-list">
+    <% videos.forEach(function (video, i) { %>
+      <li class="admin-row">
+        <form method="post" action="/admin/videos/<%= video.id %>" class="stack row-form">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <label>Link
+            <input type="text" name="url" value="<%= video.url %>" required>
+          </label>
+          <label>Title
+            <input type="text" name="title" value="<%= video.title %>" maxlength="200">
+          </label>
+          <label>Description
+            <textarea name="description" rows="2"><%= video.description %></textarea>
+          </label>
+          <p class="row-meta">
+            <%= video.provider === 'link' ? 'Plain link (not embeddable)' : video.provider + ' embed' %>
+          </p>
+          <button type="submit" class="button button-small">Save</button>
+        </form>
+        <div class="row-actions">
+          <form method="post" action="/admin/videos/<%= video.id %>/move" class="inline-form">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <input type="hidden" name="direction" value="up">
+            <button type="submit" class="icon-button" title="Move up" <%= i === 0 ? 'disabled' : '' %>>&uarr;</button>
+          </form>
+          <form method="post" action="/admin/videos/<%= video.id %>/move" class="inline-form">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <input type="hidden" name="direction" value="down">
+            <button type="submit" class="icon-button" title="Move down" <%= i === videos.length - 1 ? 'disabled' : '' %>>&darr;</button>
+          </form>
+          <form method="post" action="/admin/videos/<%= video.id %>/delete" class="inline-form"
+                onsubmit="return confirm('Remove this video?');">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button type="submit" class="icon-button danger" title="Remove">Remove</button>
+          </form>
+        </div>
+      </li>
+    <% }); %>
+  </ul>
+<% } %>
+<%- include('../partials/admin-foot') %>

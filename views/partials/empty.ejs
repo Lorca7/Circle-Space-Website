@@ -1,0 +1,7 @@
+<div class="empty-state">
+  <p class="empty-title"><%= title %></p>
+  <p class="empty-body"><%= body %></p>
+  <% if (typeof showAction === 'undefined' || showAction) { %>
+    <p class="empty-action"><a class="button" href="/admin">Open the admin panel</a></p>
+  <% } %>
+</div>

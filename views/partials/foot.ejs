@@ -1,0 +1,17 @@
+</main>
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <p class="footer-text">
+      <%= settings.footer_text || '© ' + currentYear + ' ' + siteTitle %>
+    </p>
+    <% if (links.length) { %>
+      <ul class="footer-links">
+        <% links.forEach(function (l) { %>
+          <li><a href="<%= l.url %>" rel="noopener noreferrer" target="_blank"><%= l.label %></a></li>
+        <% }); %>
+      </ul>
+    <% } %>
+  </div>
+</footer>
+</body>
+</html>

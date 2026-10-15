@@ -1,0 +1,17 @@
+<%- include('../partials/admin-head') %>
+<p class="lead">Signed in as <strong><%= currentUser.email %></strong>.</p>
+<form method="post" action="/admin/account/password" class="stack panel">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <label>Current password
+    <input type="password" name="current_password" autocomplete="current-password" required>
+  </label>
+  <label>New password
+    <input type="password" name="new_password" autocomplete="new-password" minlength="10" required>
+    <span class="hint">At least 10 characters.</span>
+  </label>
+  <label>Confirm new password
+    <input type="password" name="confirm_password" autocomplete="new-password" minlength="10" required>
+  </label>
+  <button type="submit" class="button">Change password</button>
+</form>
+<%- include('../partials/admin-foot') %>

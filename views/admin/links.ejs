@@ -1,0 +1,45 @@
+<%- include('../partials/admin-head') %>
+<p class="lead">These appear in the site footer and on the contact page.</p>
+
+<form method="post" action="/admin/links" class="stack panel">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <label>Label
+    <input type="text" name="label" maxlength="100" required>
+  </label>
+  <label>Address
+    <input type="text" name="url" placeholder="https://..." required>
+  </label>
+  <button type="submit" class="button">Add link</button>
+</form>
+
+<% if (!links.length) { %>
+  <p class="empty-row">No links yet.</p>
+<% } else { %>
+  <ul class="admin-list">
+    <% links.forEach(function (link, i) { %>
+      <li class="admin-row admin-row-compact">
+        <div class="row-main">
+          <span class="row-title"><%= link.label %></span>
+          <p class="row-meta"><%= link.url %></p>
+        </div>
+        <div class="row-actions">
+          <form method="post" action="/admin/links/<%= link.id %>/move" class="inline-form">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <input type="hidden" name="direction" value="up">
+            <button type="submit" class="icon-button" title="Move up" <%= i === 0 ? 'disabled' : '' %>>&uarr;</button>
+          </form>
+          <form method="post" action="/admin/links/<%= link.id %>/move" class="inline-form">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <input type="hidden" name="direction" value="down">
+            <button type="submit" class="icon-button" title="Move down" <%= i === links.length - 1 ? 'disabled' : '' %>>&darr;</button>
+          </form>
+          <form method="post" action="/admin/links/<%= link.id %>/delete" class="inline-form">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button type="submit" class="icon-button danger" title="Remove">Remove</button>
+          </form>
+        </div>
+      </li>
+    <% }); %>
+  </ul>
+<% } %>
+<%- include('../partials/admin-foot') %>

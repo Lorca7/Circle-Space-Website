@@ -1,0 +1,24 @@
+<%- include('../partials/head') %>
+<h1 class="page-heading"><%= settings.contact_heading || 'Contact' %></h1>
+<% if (settings.contact_body) { %>
+  <div class="prose"><%- include('../partials/prose', { text: settings.contact_body }) %></div>
+<% } %>
+<% if (settings.contact_email) { %>
+  <p class="contact-email">
+    <a href="mailto:<%= settings.contact_email %>"><%= settings.contact_email %></a>
+  </p>
+<% } %>
+<% if (links.length) { %>
+  <ul class="contact-links">
+    <% links.forEach(function (l) { %>
+      <li><a href="<%= l.url %>" rel="noopener noreferrer" target="_blank"><%= l.label %></a></li>
+    <% }); %>
+  </ul>
+<% } %>
+<% if (!settings.contact_body && !settings.contact_email && !links.length) { %>
+  <%- include('../partials/empty', {
+    title: 'No contact details yet',
+    body: 'Add an email address, some text, or your links in the admin panel.'
+  }) %>
+<% } %>
+<%- include('../partials/foot') %>

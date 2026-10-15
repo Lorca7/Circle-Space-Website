@@ -1,0 +1,11 @@
+<%- include('../partials/head') %>
+<h1 class="page-heading"><%= settings.about_heading || 'About' %></h1>
+<% if (settings.about_body) { %>
+  <div class="prose"><%- include('../partials/prose', { text: settings.about_body }) %></div>
+<% } else { %>
+  <%- include('../partials/empty', {
+    title: 'Nothing here yet',
+    body: 'Write your about text in the admin panel under Site text.'
+  }) %>
+<% } %>
+<%- include('../partials/foot') %>

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><%= pageTitle ? pageTitle + ' · ' + siteTitle : siteTitle %></title>
+<% if (settings.tagline) { %><meta name="description" content="<%= settings.tagline %>"><% } %>
+<link rel="stylesheet" href="/css/site.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="/">
+      <%= siteTitle %>
+      <% if (settings.tagline) { %><span class="brand-tagline"><%= settings.tagline %></span><% } %>
+    </a>
+    <nav class="site-nav" aria-label="Main">
+      <a href="/" <%= active === 'home' ? 'aria-current="page"' : '' %>>Home</a>
+      <a href="/gallery" <%= active === 'gallery' ? 'aria-current="page"' : '' %>>Gallery</a>
+      <a href="/videos" <%= active === 'videos' ? 'aria-current="page"' : '' %>>Videos</a>
+      <a href="/about" <%= active === 'about' ? 'aria-current="page"' : '' %>>About</a>
+      <% navPages.forEach(function (p) { %>
+        <a href="/p/<%= p.slug %>" <%= active === 'page-' + p.slug ? 'aria-current="page"' : '' %>><%= p.title %></a>
+      <% }); %>
+      <a href="/contact" <%= active === 'contact' ? 'aria-current="page"' : '' %>>Contact</a>
+    </nav>
+  </div>
+</header>
+<main id="main" class="wrap">

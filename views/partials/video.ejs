@@ -1,0 +1,26 @@
+<% if (video.embedUrl) { %>
+  <div class="video-frame">
+    <iframe
+      src="<%= video.embedUrl %>"
+      title="<%= video.title || 'Video' %>"
+      loading="lazy"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+      referrerpolicy="strict-origin-when-cross-origin"
+      allowfullscreen></iframe>
+  </div>
+<% } %>
+<div class="video-meta">
+  <% if (video.title) { %>
+    <h3 class="video-title"><%= video.title %></h3>
+  <% } %>
+  <% if (!video.embedUrl) { %>
+    <p class="video-fallback">
+      <a href="<%= video.url %>" rel="noopener noreferrer" target="_blank">
+        Watch this video<% if (!video.title) { %> &rarr;<% } %>
+      </a>
+    </p>
+  <% } %>
+  <% if (video.description) { %>
+    <p class="video-description"><%= video.description %></p>
+  <% } %>
+</div>
