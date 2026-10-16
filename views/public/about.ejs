@@ -1,13 +1,26 @@
 <%- include('../partials/head') %>
-<header class="collection-header">
-  <h1 class="collection-title"><%= settings.about_heading || 'About' %></h1>
-</header>
-<% if (settings.about_body) { %>
-  <div class="prose prose-centred"><%- include('../partials/prose', { text: settings.about_body }) %></div>
-<% } else { %>
-  <div class="empty-state">
-    <p class="empty-title">Nothing here yet</p>
-    <p class="empty-body">Write your about text in the admin panel under Site text.</p>
+
+<div class="page page--text">
+  <div class="blocks">
+    <% if (settings.about_body) { %>
+      <section class="block">
+        <div class="container container--align-left">
+          <div class="richtext richtext--normal richtext--align-left prose">
+            <%- include('../partials/prose', { text: settings.about_body }) %>
+          </div>
+        </div>
+      </section>
+    <% } else { %>
+      <section class="block">
+        <div class="container">
+          <div class="empty-state">
+            <p class="empty-state__title">Nothing here yet</p>
+            <p class="empty-state__body">Write your about text in the admin panel under Site text.</p>
+          </div>
+        </div>
+      </section>
+    <% } %>
   </div>
-<% } %>
+</div>
+
 <%- include('../partials/foot') %>

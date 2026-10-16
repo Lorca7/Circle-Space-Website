@@ -1,21 +1,36 @@
 <%- include('../partials/head') %>
 
-<% if (settings.home_image) { %>
-  <figure class="home-figure">
-    <img src="/uploads/<%= settings.home_image %>"
-         alt="<%= settings.home_image_alt %>" fetchpriority="high">
-    <% if (settings.home_caption) { %>
-      <figcaption class="home-caption"><%= settings.home_caption %></figcaption>
+<div class="page page--standard">
+  <div class="blocks">
+    <% if (settings.home_image) { %>
+      <section class="block">
+        <div class="container">
+          <figure class="single-image single-image--full">
+            <button type="button" class="single-image__trigger"
+                    aria-label="Enlarge: <%= settings.home_image_alt || 'Home image' %>"
+                    data-lightbox-src="/uploads/<%= settings.home_image %>"
+                    data-lightbox-alt="<%= settings.home_image_alt || '' %>">
+              <img src="/uploads/<%= settings.home_image %>"
+                   alt="<%= settings.home_image_alt %>" loading="eager">
+            </button>
+            <% if (settings.home_caption) { %>
+              <figcaption><%= settings.home_caption %></figcaption>
+            <% } %>
+          </figure>
+        </div>
+      </section>
+    <% } else { %>
+      <section class="block">
+        <div class="container">
+          <div class="empty-state">
+            <p class="empty-state__title">No home page image yet</p>
+            <p class="empty-state__body">Choose the piece that opens the site under <strong>Site text</strong> in the admin panel.</p>
+            <p class="empty-state__action"><a class="button" href="/admin">Open the admin panel</a></p>
+          </div>
+        </div>
+      </section>
     <% } %>
-  </figure>
-<% } else { %>
-  <div class="empty-state">
-    <p class="empty-title">No home page image yet</p>
-    <p class="empty-body">
-      Choose the piece that opens the site under <strong>Site text</strong> in the admin panel.
-    </p>
-    <p class="empty-action"><a class="button" href="/admin">Open the admin panel</a></p>
   </div>
-<% } %>
+</div>
 
 <%- include('../partials/foot') %>

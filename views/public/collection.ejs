@@ -1,54 +1,98 @@
 <%- include('../partials/head') %>
 
-<header class="collection-header">
-  <h1 class="collection-title"><%= collection.title %></h1>
-  <% if (collection.subtitle) { %>
-    <p class="collection-subtitle"><%= collection.subtitle %></p>
-  <% } %>
-</header>
+<%
+  var sizeMap = { 1: 'xlarge', 2: 'large', 3: 'medium', 4: 'small' };
+  var piecesSize = sizeMap[collection.columns] || 'medium';
+%>
 
-<% if (collection.description) { %>
-  <div class="collection-description">
-    <%- include('../partials/prose', { text: collection.description }) %>
-  </div>
-<% } %>
+<div class="page page--standard">
+  <div class="blocks">
 
-<% if (works.length) { %>
-  <ul class="work-grid cols-<%= collection.columns %>">
-    <% works.forEach(function (work) { %>
-      <li class="work">
-        <% if (work.kind === 'video') { %>
-          <% if (work.embedUrl) { %>
-            <div class="work-video">
-              <iframe src="<%= work.embedUrl %>"
-                      title="<%= work.title || 'Video' %>"
-                      loading="lazy"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      referrerpolicy="strict-origin-when-cross-origin"
-                      allowfullscreen></iframe>
-            </div>
-          <% } else { %>
-            <p class="work-link">
-              <a href="<%= work.url %>" target="_blank" rel="noopener noreferrer">Watch &rarr;</a>
-            </p>
+    <section class="hero hero--medium hero--center hero--space-none">
+      <div class="hero__content">
+        <div class="container">
+          <h1><%= collection.title %></h1>
+          <% if (collection.subtitle) { %>
+            <p class="hero__subheading"><%= collection.subtitle %></p>
           <% } %>
-        <% } else if (work.filename) { %>
-          <a class="work-image-link" href="/uploads/<%= work.filename %>" target="_blank" rel="noopener noreferrer">
-            <img src="/uploads/<%= work.filename %>" alt="<%= work.alt_text || work.title %>" loading="lazy">
-          </a>
-        <% } %>
+        </div>
+      </div>
+    </section>
 
-        <% if (work.title) { %><h2 class="work-title"><%= work.title %></h2><% } %>
-        <% var meta = [work.year, work.medium].filter(Boolean).join(' · '); %>
-        <% if (meta) { %><p class="work-meta"><%= meta %></p><% } %>
-      </li>
-    <% }); %>
-  </ul>
-<% } else { %>
-  <div class="empty-state">
-    <p class="empty-title">Nothing in this collection yet</p>
-    <p class="empty-body">Add the works to it from the admin panel.</p>
+    <% if (collection.description) { %>
+      <section class="block">
+        <div class="container">
+          <div class="richtext richtext--normal richtext--small richtext--align-center prose">
+            <%- include('../partials/prose', { text: collection.description }) %>
+          </div>
+        </div>
+      </section>
+    <% } %>
+
+    <% if (works.length) { %>
+      <section class="block">
+        <div class="container">
+          <div class="pieces pieces--size-<%= piecesSize %> pieces--gap-medium">
+            <% works.forEach(function (work) { %>
+              <% if (work.kind === 'video') { %>
+                <button type="button" class="pieces__item"
+                        aria-label="Open: <%= work.title || 'Video' %>"
+                        data-lightbox-video="<%= work.embedUrl || work.url %>"
+                        data-lightbox-title="<%= work.title || '' %>"
+                        data-lightbox-meta="<%= [work.year, work.medium].filter(Boolean).join(' · ') %>">
+                  <div class="pieces__media">
+                    <% if (work.video_id && work.provider === 'youtube') { %>
+                      <img src="https://i.ytimg.com/vi/<%= work.video_id %>/hqdefault.jpg"
+                           alt="<%= work.title || 'Video thumbnail' %>" loading="lazy">
+                    <% } else { %>
+                      <div style="aspect-ratio:16/9; background:var(--color-border);"></div>
+                    <% } %>
+                    <span class="pieces__play" aria-hidden="true">&#9654;</span>
+                  </div>
+                  <% if (work.title || work.year || work.medium) { %>
+                    <div class="pieces__caption">
+                      <% if (work.title) { %><div class="pieces__title"><%= work.title %></div><% } %>
+                      <% var meta = [work.year, work.medium].filter(Boolean).join(' · '); %>
+                      <% if (meta) { %><div class="pieces__sub"><%= meta %></div><% } %>
+                    </div>
+                  <% } %>
+                </button>
+              <% } else if (work.filename) { %>
+                <button type="button" class="pieces__item"
+                        aria-label="Open: <%= work.title || work.alt_text || 'Image' %>"
+                        data-lightbox-src="/uploads/<%= work.filename %>"
+                        data-lightbox-alt="<%= work.alt_text || work.title || '' %>"
+                        data-lightbox-title="<%= work.title || '' %>"
+                        data-lightbox-meta="<%= [work.year, work.medium].filter(Boolean).join(' · ') %>">
+                  <div class="pieces__media">
+                    <img src="/uploads/<%= work.filename %>"
+                         alt="<%= work.alt_text || work.title %>" loading="lazy">
+                  </div>
+                  <% if (work.title || work.year || work.medium) { %>
+                    <div class="pieces__caption">
+                      <% if (work.title) { %><div class="pieces__title"><%= work.title %></div><% } %>
+                      <% var meta = [work.year, work.medium].filter(Boolean).join(' · '); %>
+                      <% if (meta) { %><div class="pieces__sub"><%= meta %></div><% } %>
+                    </div>
+                  <% } %>
+                </button>
+              <% } %>
+            <% }); %>
+          </div>
+        </div>
+      </section>
+    <% } else { %>
+      <section class="block">
+        <div class="container">
+          <div class="empty-state">
+            <p class="empty-state__title">Nothing in this collection yet</p>
+            <p class="empty-state__body">Add the works to it from the admin panel.</p>
+          </div>
+        </div>
+      </section>
+    <% } %>
+
   </div>
-<% } %>
+</div>
 
 <%- include('../partials/foot') %>
