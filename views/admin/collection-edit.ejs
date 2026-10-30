@@ -93,8 +93,8 @@
     <% works.forEach(function (work, i) { %>
       <li class="admin-row">
         <div class="row-thumb">
-          <% if (work.kind === 'image' && work.filename) { %>
-            <img class="thumb" src="/uploads/<%= work.filename %>" alt="" loading="lazy">
+          <% if (work.kind === 'image' && work.url) { %>
+            <img class="thumb" src="<%= work.url %>" alt="" loading="lazy">
           <% } else { %>
             <span class="thumb thumb-video"><%= work.provider || 'link' %></span>
           <% } %>

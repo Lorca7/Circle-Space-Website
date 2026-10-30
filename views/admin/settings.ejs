@@ -6,7 +6,7 @@
   <p class="hint">The single piece that opens the site. Nothing else appears on the home page.</p>
 
   <% if (settings.home_image) { %>
-    <img class="preview" src="/uploads/<%= settings.home_image %>" alt="">
+    <img class="preview" src="<%= settings.home_image %>" alt="">
     <form method="post" action="/admin/settings/home-image/delete" class="inline-form"
           onsubmit="return confirm('Remove the home page image?');">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">

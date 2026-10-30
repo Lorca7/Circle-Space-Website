@@ -57,15 +57,15 @@
                     </div>
                   <% } %>
                 </button>
-              <% } else if (work.filename) { %>
+              <% } else if (work.url) { %>
                 <button type="button" class="pieces__item"
                         aria-label="Open: <%= work.title || work.alt_text || 'Image' %>"
-                        data-lightbox-src="/uploads/<%= work.filename %>"
+                        data-lightbox-src="<%= work.url %>"
                         data-lightbox-alt="<%= work.alt_text || work.title || '' %>"
                         data-lightbox-title="<%= work.title || '' %>"
                         data-lightbox-meta="<%= [work.year, work.medium].filter(Boolean).join(' · ') %>">
                   <div class="pieces__media">
-                    <img src="/uploads/<%= work.filename %>"
+                    <img src="<%= work.url %>"
                          alt="<%= work.alt_text || work.title %>" loading="lazy">
                   </div>
                   <% if (work.title || work.year || work.medium) { %>

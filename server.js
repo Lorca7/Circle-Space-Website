@@ -7,7 +7,7 @@ const crypto = require('node:crypto');
 const express = require('express');
 const session = require('express-session');
 
-const { db, getSettings, UPLOAD_DIR } = require('./src/db');
+const { sql, migrate, getSettings } = require('./src/db');
 const createStore = require('./src/lib/session-store');
 const content = require('./src/content');
 const publicRoutes = require('./src/routes/public');
@@ -17,8 +17,6 @@ const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const IN_PRODUCTION = process.env.NODE_ENV === 'production';
 
-// Hosting platforms terminate TLS in front of the app; trusting the proxy lets
-// secure cookies and req.protocol work behind it.
 app.set('trust proxy', 1);
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
@@ -50,7 +48,7 @@ app.use(express.urlencoded({ extended: false, limit: '1mb' }));
 app.use(
   session({
     name: 'sid',
-    store: createStore(db),
+    store: createStore(sql),
     secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
@@ -65,15 +63,22 @@ app.use(
 );
 
 app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1h' }));
-app.use('/uploads', express.static(UPLOAD_DIR, { maxAge: '7d', index: false }));
 
-// Shared template data: the site's own text, nav and links, on every render.
-app.use((req, res, next) => {
-  const settings = getSettings();
+let migrated = false;
+app.use(async (req, res, next) => {
+  if (!migrated) {
+    await migrate();
+    migrated = true;
+  }
+  next();
+});
+
+app.use(async (req, res, next) => {
+  const settings = await getSettings();
   res.locals.settings = settings;
   res.locals.siteTitle = settings.site_title || 'Untitled site';
   res.locals.siteTitleIsPlaceholder = !settings.site_title;
-  res.locals.navCollections = content.listPublishedCollections();
+  res.locals.navCollections = await content.listPublishedCollections();
   res.locals.currentYear = new Date().getFullYear();
   res.locals.path = req.path;
   res.locals.active = '';
@@ -105,13 +110,15 @@ app.use((err, req, res, next) => {
 });
 
 if (require.main === module) {
-  const server = app.listen(PORT, () => {
-    console.log(`Site running at http://localhost:${PORT}`);
-    console.log(`Admin panel at  http://localhost:${PORT}/admin`);
+  migrate().then(() => {
+    const server = app.listen(PORT, () => {
+      console.log(`Site running at http://localhost:${PORT}`);
+      console.log(`Admin panel at  http://localhost:${PORT}/admin`);
+    });
+    for (const signal of ['SIGTERM', 'SIGINT']) {
+      process.on(signal, () => server.close(() => process.exit(0)));
+    }
   });
-  for (const signal of ['SIGTERM', 'SIGINT']) {
-    process.on(signal, () => server.close(() => process.exit(0)));
-  }
 }
 
 module.exports = app;

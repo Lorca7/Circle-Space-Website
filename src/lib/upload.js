@@ -1,9 +1,13 @@
 'use strict';
 
-const path = require('node:path');
-const crypto = require('node:crypto');
 const multer = require('multer');
-const { UPLOAD_DIR } = require('../db');
+const cloudinary = require('cloudinary').v2;
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 const ALLOWED = new Map([
   ['image/jpeg', '.jpg'],
@@ -15,17 +19,7 @@ const ALLOWED = new Map([
 
 const MAX_BYTES = Number(process.env.MAX_UPLOAD_MB || 15) * 1024 * 1024;
 
-const storage = multer.diskStorage({
-  destination(req, file, done) {
-    done(null, UPLOAD_DIR);
-  },
-  // Never trust the client filename: generate our own and take the extension
-  // from the vetted MIME type, so nothing can escape the upload directory.
-  filename(req, file, done) {
-    const ext = ALLOWED.get(file.mimetype) || '.bin';
-    done(null, `${Date.now()}-${crypto.randomBytes(8).toString('hex')}${ext}`);
-  },
-});
+const storage = multer.memoryStorage();
 
 const upload = multer({
   storage,
@@ -38,6 +32,32 @@ const upload = multer({
   },
 });
 
+function parseUpload(middleware) {
+  return (req, res) =>
+    new Promise((resolve, reject) => {
+      middleware(req, res, (err) => (err ? reject(err) : resolve()));
+    });
+}
+
+async function uploadToCloud(buffer, options = {}) {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder: 'circle-space', ...options },
+      (err, result) => (err ? reject(err) : resolve(result))
+    );
+    stream.end(buffer);
+  });
+}
+
+async function deleteFromCloud(publicId) {
+  if (!publicId) return;
+  try {
+    await cloudinary.uploader.destroy(publicId);
+  } catch {
+    // best-effort deletion
+  }
+}
+
 function describeUploadError(err) {
   if (!(err instanceof multer.MulterError)) return null;
   if (err.code === 'LIMIT_FILE_SIZE') {
@@ -49,4 +69,4 @@ function describeUploadError(err) {
   return 'That upload could not be accepted.';
 }
 
-module.exports = { upload, describeUploadError, MAX_BYTES, UPLOAD_DIR, safeExt: path.extname };
+module.exports = { upload, parseUpload, uploadToCloud, deleteFromCloud, describeUploadError, MAX_BYTES };

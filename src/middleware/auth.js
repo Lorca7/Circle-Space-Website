@@ -2,28 +2,21 @@
 
 const crypto = require('node:crypto');
 const bcrypt = require('bcryptjs');
-const { db } = require('../db');
-
-const findUserByEmail = db.prepare('SELECT * FROM users WHERE email = ?');
-const countUsers = db.prepare('SELECT COUNT(*) AS n FROM users');
-const insertUser = db.prepare(
-  'INSERT INTO users (email, password_hash) VALUES (?, ?)'
-);
+const { sql } = require('../db');
 
 function normaliseEmail(email) {
   return String(email ?? '').trim().toLowerCase();
 }
 
-function createUser(email, password) {
+async function createUser(email, password) {
   const hash = bcrypt.hashSync(password, 12);
-  return insertUser.run(normaliseEmail(email), hash);
+  await sql`INSERT INTO users (email, password_hash) VALUES (${normaliseEmail(email)}, ${hash})`;
 }
 
-function verifyLogin(email, password) {
-  const user = findUserByEmail.get(normaliseEmail(email));
+async function verifyLogin(email, password) {
+  const rows = await sql`SELECT * FROM users WHERE email = ${normaliseEmail(email)}`;
+  const user = rows[0];
   if (!user) {
-    // Spend comparable time on a missing user so timing does not reveal
-    // whether the address exists.
     bcrypt.compareSync(String(password ?? ''), '$2a$12$' + 'x'.repeat(53));
     return null;
   }
@@ -31,8 +24,9 @@ function verifyLogin(email, password) {
   return user;
 }
 
-function hasAnyUser() {
-  return countUsers.get().n > 0;
+async function hasAnyUser() {
+  const rows = await sql`SELECT COUNT(*) AS n FROM users`;
+  return Number(rows[0].n) > 0;
 }
 
 function requireAuth(req, res, next) {
@@ -42,7 +36,6 @@ function requireAuth(req, res, next) {
   return res.redirect('/admin/login');
 }
 
-/** Compares the token on the request against the one held in the session. */
 function tokenMatches(req) {
   const sent = String(req.body?._csrf ?? req.get('x-csrf-token') ?? '');
   const expected = String(req.session?.csrfToken ?? '');
@@ -61,26 +54,16 @@ function rejectCsrf(res) {
   });
 }
 
-/**
- * Synchroniser-token CSRF guard for the admin forms.
- *
- * Multipart uploads are the exception: their body is parsed by multer inside
- * the route, so no token is visible this early. Those requests are flagged and
- * the route checks the token itself once the body has been read.
- */
 function csrf(req, res, next) {
   if (!req.session.csrfToken) {
     req.session.csrfToken = crypto.randomBytes(32).toString('hex');
   }
   res.locals.csrfToken = req.session.csrfToken;
-
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
-
   if (req.is('multipart/form-data')) {
     req.csrfDeferred = true;
     return next();
   }
-
   return tokenMatches(req) ? next() : rejectCsrf(res);
 }
 

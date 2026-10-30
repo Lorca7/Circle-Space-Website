@@ -8,9 +8,9 @@
           <figure class="single-image single-image--full">
             <button type="button" class="single-image__trigger"
                     aria-label="Enlarge: <%= settings.home_image_alt || 'Home image' %>"
-                    data-lightbox-src="/uploads/<%= settings.home_image %>"
+                    data-lightbox-src="<%= settings.home_image %>"
                     data-lightbox-alt="<%= settings.home_image_alt || '' %>">
-              <img src="/uploads/<%= settings.home_image %>"
+              <img src="<%= settings.home_image %>"
                    alt="<%= settings.home_image_alt %>" loading="eager">
             </button>
             <% if (settings.home_caption) { %>

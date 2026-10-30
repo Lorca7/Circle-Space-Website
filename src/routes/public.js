@@ -15,13 +15,14 @@ router.get('/about', (req, res) => {
   res.render('public/about', { pageTitle: 'About', active: 'about' });
 });
 
-router.get('/c/:slug', (req, res, next) => {
-  const collection = content.getCollectionBySlug(String(req.params.slug));
+router.get('/c/:slug', async (req, res, next) => {
+  const collection = await content.getCollectionBySlug(String(req.params.slug));
   if (!collection || !collection.published) return next();
+  const works = await content.listWorks(collection.id);
   res.render('public/collection', {
     pageTitle: collection.title,
     collection,
-    works: content.listWorks(collection.id),
+    works,
     active: `collection-${collection.id}`,
   });
 });
@@ -38,7 +39,7 @@ router.get('/contact', (req, res) => {
   });
 });
 
-router.post('/contact', (req, res) => {
+router.post('/contact', async (req, res) => {
   const form = {
     name: String(req.body.name ?? '').trim().slice(0, 200),
     email: String(req.body.email ?? '').trim().slice(0, 200),
@@ -46,7 +47,6 @@ router.post('/contact', (req, res) => {
     body: String(req.body.message ?? '').trim().slice(0, 5000),
   };
 
-  // Hidden field that people never see; anything filling it in is a bot.
   if (String(req.body.website ?? '').trim() !== '') {
     return res.redirect('/contact?sent=1');
   }
@@ -58,21 +58,16 @@ router.post('/contact', (req, res) => {
 
   if (formError) {
     return res.status(400).render('public/contact', {
-      pageTitle: 'Contact',
-      active: 'contact',
-      form,
-      sent: false,
-      subscribed: false,
-      formError,
-      signupError: null,
+      pageTitle: 'Contact', active: 'contact', form,
+      sent: false, subscribed: false, formError, signupError: null,
     });
   }
 
-  content.messages.add.run(form);
+  await content.addMessage(form);
   return res.redirect('/contact?sent=1#contact-form');
 });
 
-router.post('/subscribe', (req, res) => {
+router.post('/subscribe', async (req, res) => {
   const email = String(req.body.email ?? '').trim().toLowerCase().slice(0, 200);
 
   if (String(req.body.website ?? '').trim() !== '') {
@@ -81,17 +76,13 @@ router.post('/subscribe', (req, res) => {
 
   if (!EMAIL_RE.test(email)) {
     return res.status(400).render('public/contact', {
-      pageTitle: 'Contact',
-      active: 'contact',
-      form: {},
-      sent: false,
-      subscribed: false,
-      formError: null,
+      pageTitle: 'Contact', active: 'contact', form: {},
+      sent: false, subscribed: false, formError: null,
       signupError: 'Please enter a valid email address.',
     });
   }
 
-  content.subscribers.add.run(email);
+  await content.addSubscriber(email);
   return res.redirect('/contact?subscribed=1#studio-updates');
 });
 
